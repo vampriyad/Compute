@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Compute</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237c6fee'/%3E%3Cstop offset='1' stop-color='%232fe6c8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='24' height='24' rx='6' fill='url(%23g)'/%3E%3Cpath d='M3 13h3.2l1.8-6 3.4 12 2.2-6h3.4l1.8 4' fill='none' stroke='%230a0a12' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.4.2/math.min.js"></script>
+<style>
+:root{
+  --bg-0:#08080d;
+  --bg-1:#0d0e15;
+  --bg-2:#121320;
+  --glass:rgba(255,255,255,0.045);
+  --glass-hi:rgba(255,255,255,0.08);
+  --border:rgba(255,255,255,0.09);
+  --border-hi:rgba(255,255,255,0.16);
+  --text-0:#f2f1fb;
+  --text-1:#b4b1d4;
+  --text-2:#716e94;
+  --violet:#7c6fee;
+  --violet-2:#a89bff;
+  --cyan:#2fe6c8;
+  --accent-grad:linear-gradient(135deg,#7c6fee 0%,#2fe6c8 100%);
+  --danger:#ff6b6b;
+  --radius-lg:22px;
+  --radius-md:16px;
+  --radius-sm:10px;
+  --font-display:'Space Grotesk',sans-serif;
+  --font-body:'Inter',sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+  --precision:8;
+  --fsize:16px;
+}
+[data-theme="light"]{
+  --bg-0:#f3f2fb; --bg-1:#ffffff; --bg-2:#eeecf9;
+  --glass:rgba(20,18,40,0.035); --glass-hi:rgba(20,18,40,0.07);
+  --border:rgba(20,18,40,0.09); --border-hi:rgba(20,18,40,0.18);
+  --text-0:#171625; --text-1:#4d4a6b; --text-2:#8a87a8;
+}
+[data-theme="amoled"]{
+  --bg-0:#000000; --bg-1:#050505; --bg-2:#0a0a0a;
+  --glass:rgba(255,255,255,0.04); --glass-hi:rgba(255,255,255,0.09);
+  --border:rgba(255,255,255,0.08); --border-hi:rgba(255,255,255,0.18);
+}
+[data-theme="midnight"]{
+  --bg-0:#050a18; --bg-1:#081020; --bg-2:#0b1730;
+  --violet:#5b8cff; --violet-2:#8fb0ff; --cyan:#3ddcff;
+  --accent-grad:linear-gradient(135deg,#5b8cff 0%,#3ddcff 100%);
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html,body{height:100%;}
+body{
+  background:
+    radial-gradient(1200px 600px at 85% -10%, color-mix(in srgb, var(--violet) 14%, transparent), transparent 60%),
+    radial-gradient(900px 500px at -5% 110%, color-mix(in srgb, var(--cyan) 10%, transparent), transparent 60%),
+    var(--bg-0);
+  color:var(--text-0);
+  font-family:var(--font-body);
+  font-size:var(--fsize);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+  transition:background .4s ease,color .3s ease;
+}
+::selection{background:color-mix(in srgb, var(--violet) 40%, transparent); color:#fff;}
+::-webkit-scrollbar{width:8px; height:8px;}
+::-webkit-scrollbar-thumb{background:var(--border-hi); border-radius:8px;}
+::-webkit-scrollbar-track{background:transparent;}
+button, input, select{ font-family:inherit; color:inherit; }
+button{cursor:pointer;}
+
+.app{ display:grid; grid-template-columns:240px 1fr; height:100vh; }
+.menu-btn{ display:none; width:38px; height:38px; border-radius:10px; background:var(--glass); border:1px solid var(--border); align-items:center; justify-content:center; color:var(--text-1); flex-shrink:0; }
+.menu-btn:hover{ background:var(--glass-hi); color:var(--text-0); }
+.sidebar-overlay{ display:none; }
+@media (max-width:860px){
+  .app{ grid-template-columns:1fr; }
+  .sidebar{
+    position:fixed; top:0; left:0; bottom:0; width:240px; z-index:110;
+    transform:translateX(-100%); transition:transform .25s cubic-bezier(.2,.8,.2,1);
+    box-shadow:0 0 40px rgba(0,0,0,.35);
+  }
+  .sidebar.open{ transform:translateX(0); }
+  .menu-btn{ display:flex; }
+  .sidebar-overlay{
+    display:block; position:fixed; inset:0; background:rgba(4,4,10,.5); z-index:105;
+    opacity:0; pointer-events:none; transition:opacity .25s ease;
+  }
+  .sidebar-overlay.open{ opacity:1; pointer-events:auto; }
+  .search-box{ max-width:none; }
+}
+.sidebar{
+  background:var(--glass);
+  border-right:1px solid var(--border);
+  backdrop-filter:blur(20px);
+  display:flex; flex-direction:column;
+  padding:20px 14px;
+  gap:4px;
+}
+.brand{
+  display:flex; align-items:center; gap:10px;
+  padding:8px 10px 22px 10px;
+}
+.brand .mark{
+  width:34px; height:34px; border-radius:10px;
+  background:var(--accent-grad);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-display); font-weight:700; color:#0a0a12; font-size:16px;
+  box-shadow:0 4px 18px color-mix(in srgb, var(--violet) 45%, transparent);
+}
+.brand h1{ font-family:var(--font-display); font-size:17px; font-weight:600; letter-spacing:.2px;}
+.brand span{ display:block; font-size:11px; color:var(--text-2); margin-top:1px;}
+
+.nav-item{
+  display:flex; align-items:center; gap:12px;
+  padding:11px 12px; border-radius:var(--radius-sm);
+  color:var(--text-1); font-size:14px; font-weight:500;
+  border:1px solid transparent; background:none; text-align:left;
+  transition:background .18s ease, color .18s ease, border-color .18s ease, transform .12s ease;
+}
+.nav-item:hover{ background:var(--glass-hi); color:var(--text-0); }
+.nav-item:active{ transform:scale(0.98); }
+.nav-item.active{
+  background:linear-gradient(135deg, color-mix(in srgb, var(--violet) 22%, transparent), color-mix(in srgb, var(--cyan) 14%, transparent));
+  border-color:var(--border-hi); color:var(--text-0);
+}
+.nav-item svg{ width:18px; height:18px; flex-shrink:0; opacity:.9;}
+.nav-spacer{ flex:1; }
+.nav-footer{ padding-top:10px; border-top:1px solid var(--border); margin-top:8px; }
+
+.main{ display:flex; flex-direction:column; height:100vh; overflow:hidden; position:relative;}
+.topbar{
+  display:flex; align-items:center; gap:14px;
+  padding:16px 26px; border-bottom:1px solid var(--border);
+  backdrop-filter:blur(10px);
+}
+.search-box{
+  flex:1; max-width:420px; display:flex; align-items:center; gap:9px;
+  background:var(--glass); border:1px solid var(--border); border-radius:12px;
+  padding:9px 14px; color:var(--text-2);
+}
+.search-box input{ background:none; border:none; outline:none; color:var(--text-0); font-size:13.5px; width:100%;}
+.search-box svg{ width:16px; height:16px; opacity:.7; flex-shrink:0;}
+.kbd{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-2); border:1px solid var(--border); border-radius:5px; padding:1px 5px; }
+.topbar-right{ margin-left:auto; display:flex; align-items:center; gap:10px; color:var(--text-2); font-size:12.5px;}
+
+.view{ flex:1; overflow-y:auto; padding:28px 30px 60px; display:none; }
+.view.active{ display:block; animation:fadein .35s ease; }
+@keyframes fadein{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+
+.glass-card{
+  background:var(--glass); border:1px solid var(--border); border-radius:var(--radius-lg);
+  backdrop-filter:blur(16px);
+}
+.dash-hero{
+  border-radius:26px; padding:34px; position:relative; overflow:hidden; margin-bottom:26px;
+  background:var(--glass); border:1px solid var(--border);
+}
+.dash-hero h2{ font-family:var(--font-display); font-size:28px; font-weight:600; margin-bottom:8px;}
+.dash-hero p{ color:var(--text-1); font-size:14px; max-width:520px; line-height:1.55;}
+.scope-wrap{ position:absolute; right:-10px; top:-10px; bottom:-10px; width:46%; opacity:.9; pointer-events:none;}
+@media (max-width:900px){ .scope-wrap{display:none;} }
+
+.card-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:16px; }
+.dcard{
+  background:var(--glass); border:1px solid var(--border); border-radius:var(--radius-md);
+  padding:22px; cursor:pointer; position:relative; overflow:hidden;
+  transition:transform .22s cubic-bezier(.2,.8,.2,1), border-color .22s ease, background .22s ease;
+  animation:float-in .5s ease backwards;
+}
+.dcard:nth-child(1){animation-delay:.03s} .dcard:nth-child(2){animation-delay:.08s}
+.dcard:nth-child(3){animation-delay:.13s} .dcard:nth-child(4){animation-delay:.18s}
+.dcard:nth-child(5){animation-delay:.23s} .dcard:nth-child(6){animation-delay:.28s}
+.dcard:nth-child(7){animation-delay:.33s}
+@keyframes float-in{ from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:translateY(0);} }
+.dcard:hover{ transform:translateY(-4px); border-color:var(--border-hi); background:var(--glass-hi); }
+.dcard .icn{
+  width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+  background:var(--accent-grad); margin-bottom:16px; color:#0a0a12;
+}
+.dcard .icn svg{ width:22px; height:22px; }
+.dcard h3{ font-family:var(--font-display); font-size:16px; font-weight:600; margin-bottom:4px;}
+.dcard p{ font-size:12.5px; color:var(--text-2); }
+.calc-wrap{ display:grid; grid-template-columns:1fr 300px; gap:20px; align-items:start; }
+@media (max-width:1000px){ .calc-wrap{ grid-template-columns:1fr; } }
+.calc-panel{ padding:24px; border-radius:var(--radius-lg); }
+.calc-display{
+  text-align:right; padding:20px 6px 10px; margin-bottom:16px;
+}
+.calc-expr{ font-family:var(--font-mono); font-size:14px; color:var(--text-2); min-height:20px; word-break:break-all;}
+.calc-result{ font-family:var(--font-mono); font-size:44px; font-weight:600; margin-top:6px; word-break:break-all; letter-spacing:-.5px; cursor:pointer; border-radius:10px; transition:background .15s ease; }
+.calc-result:hover{ background:var(--glass-hi); }
+.calc-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+.calc-grid.sci{ grid-template-columns:repeat(6,1fr); }
+@media (max-width:640px){ .calc-grid.sci{ grid-template-columns:repeat(4,1fr);} }
+.key{
+  border:1px solid var(--border); background:var(--glass);
+  border-radius:14px; padding:16px 0; font-size:16px; font-weight:500;
+  font-family:var(--font-mono); color:var(--text-0); position:relative; overflow:hidden;
+  transition:background .15s ease, border-color .15s ease, transform .08s ease;
+}
+.key:hover{ background:var(--glass-hi); border-color:var(--border-hi); }
+.key:active{ transform:scale(0.94); }
+.key.op{ color:var(--violet-2); }
+.key.eq{ background:var(--accent-grad); color:#0a0a12; font-weight:700; border:none;}
+.key.eq:hover{ filter:brightness(1.08); }
+.key.fn{ font-size:13px; }
+.key.wide{ grid-column:span 2; }
+.key .ripple{
+  position:absolute; border-radius:50%; background:rgba(255,255,255,.35);
+  transform:scale(0); animation:ripple .5s ease-out; pointer-events:none;
+}
+@keyframes ripple{ to{ transform:scale(3.2); opacity:0; } }
+
+.side-panel{ padding:20px; border-radius:var(--radius-lg); max-height:520px; display:flex; flex-direction:column;}
+.side-panel h4{ font-family:var(--font-display); font-size:13px; text-transform:uppercase; letter-spacing:.6px; color:var(--text-2); margin-bottom:12px; display:flex; align-items:center; justify-content:space-between;}
+.side-panel h4 button{ background:none; border:none; color:var(--text-2); font-size:11px; text-decoration:underline; }
+.hist-list{ overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:8px;}
+.hist-item{
+  padding:10px 12px; border-radius:10px; background:var(--glass); border:1px solid var(--border);
+  cursor:pointer; transition:background .15s ease;
+}
+.hist-item:hover{ background:var(--glass-hi); }
+.hist-item .e{ font-family:var(--font-mono); font-size:11.5px; color:var(--text-2); }
+.hist-item .r{ font-family:var(--font-mono); font-size:15px; font-weight:600; margin-top:2px;}
+.empty-hint{ color:var(--text-2); font-size:12.5px; text-align:center; padding:30px 8px;}
+
+.toggle-row{ display:flex; gap:8px; margin-bottom:14px; }
+.toggle-btn{
+  flex:1; padding:8px; border-radius:10px; border:1px solid var(--border); background:var(--glass);
+  font-size:12px; font-weight:600; color:var(--text-1);
+}
+.toggle-btn.active{ background:var(--accent-grad); color:#0a0a12; border-color:transparent;}
+.mem-row{ display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap;}
+.mem-row .key{ flex:1; min-width:50px; padding:10px 0; font-size:12px;}
+
+.graph-wrap{ display:grid; grid-template-columns:300px 1fr; gap:20px; height:calc(100vh - 150px); }
+@media (max-width:1000px){ .graph-wrap{ grid-template-columns:1fr; height:auto;} }
+.eq-panel{ padding:18px; border-radius:var(--radius-lg); display:flex; flex-direction:column; overflow:hidden;}
+.eq-list{ overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:8px; margin-top:10px;}
+.eq-row{
+  display:flex; align-items:center; gap:8px; padding:9px 10px; border-radius:10px;
+  background:var(--glass); border:1px solid var(--border);
+}
+.eq-swatch{ width:12px; height:12px; border-radius:50%; flex-shrink:0; cursor:pointer;}
+.eq-row input[type=text]{
+  flex:1; background:none; border:none; outline:none; font-family:var(--font-mono); font-size:13px; color:var(--text-0); min-width:0;
+}
+.eq-row button{ background:none; border:none; color:var(--text-2); opacity:.7; padding:2px;}
+.eq-row button:hover{ opacity:1; color:var(--danger);}
+.eq-row.hidden-eq{ opacity:.4; }
+.add-eq-btn{
+  margin-top:12px; padding:11px; border-radius:12px; border:1px dashed var(--border-hi);
+  background:none; color:var(--text-1); font-size:13px; font-weight:500;
+}
+.add-eq-btn:hover{ background:var(--glass-hi); color:var(--text-0); }
+.graph-canvas-wrap{ position:relative; border-radius:var(--radius-lg); overflow:hidden; border:1px solid var(--border); background:var(--bg-1); }
+#graphCanvas{ width:100%; height:100%; display:block; cursor:grab; }
+#graphCanvas:active{ cursor:grabbing; }
+.graph-controls{ position:absolute; top:14px; right:14px; display:flex; flex-direction:column; gap:8px;}
+.gctrl-btn{
+  width:36px; height:36px; border-radius:10px; background:var(--glass); border:1px solid var(--border);
+  backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; color:var(--text-1);
+}
+.gctrl-btn:hover{ background:var(--glass-hi); color:var(--text-0); }
+.coord-readout{
+  position:absolute; bottom:14px; left:14px; font-family:var(--font-mono); font-size:11.5px;
+  color:var(--text-1); background:var(--glass); border:1px solid var(--border); padding:6px 10px; border-radius:8px; backdrop-filter:blur(10px);
+}
+
+.cur-wrap{ max-width:760px; margin:0 auto; }
+.cur-card{ padding:30px; border-radius:var(--radius-lg); margin-bottom:22px; }
+.cur-row{ display:flex; align-items:center; gap:14px; }
+.cur-box{ flex:1; min-width:0; background:var(--glass); border:1px solid var(--border); border-radius:14px; padding:16px 18px;}
+.cur-box label{ font-size:11px; color:var(--text-2); text-transform:uppercase; letter-spacing:.5px;}
+.cur-box .row2{ display:flex; align-items:center; gap:10px; margin-top:8px; min-width:0;}
+.cur-box select{ background:none; border:none; outline:none; font-size:14px; font-weight:600; color:var(--text-0); appearance:none; cursor:pointer;}
+.cur-box input{ flex:1; min-width:0; background:none; border:none; outline:none; font-family:var(--font-mono); font-size:24px; font-weight:600; color:var(--text-0);}
+.cur-select{ position:relative; flex-shrink:0; }
+.cur-select-btn{ display:flex; align-items:center; gap:8px; background:none; border:none; padding:2px; font-size:14px; font-weight:600; color:var(--text-0); }
+.cur-select-btn .chev{ opacity:.55; margin-left:1px; }
+.cur-select-btn:hover .chev{ opacity:.9; }
+.flag-ico{ width:20px; height:14px; border-radius:3px; object-fit:cover; background:var(--glass-hi); box-shadow:0 0 0 1px var(--border);}
+.cur-dropdown{
+  display:none; position:absolute; top:calc(100% + 10px); left:0; width:270px; z-index:60;
+  background:var(--bg-2); border:1px solid var(--border-hi); border-radius:16px; overflow:hidden;
+  box-shadow:0 24px 60px rgba(0,0,0,.4); backdrop-filter:blur(14px);
+}
+.cur-select.open .cur-dropdown{ display:block; animation:fadein .15s ease; }
+#curToSelect .cur-dropdown{ left:auto; right:0; }
+.cur-dd-search{
+  width:100%; padding:12px 14px; background:var(--glass); border:none; border-bottom:1px solid var(--border);
+  outline:none; font-size:13px; color:var(--text-0);
+}
+.cur-dd-list{ max-height:280px; overflow-y:auto; padding:6px; }
+.cur-dd-item{
+  display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:10px; cursor:pointer; font-size:13px;
+}
+.cur-dd-item:hover, .cur-dd-item.hl{ background:var(--glass-hi); }
+.cur-dd-item .code{ font-weight:600; font-family:var(--font-mono); min-width:38px;}
+.cur-dd-item .name{ color:var(--text-2); font-size:11.5px; margin-left:auto; text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.cur-dd-empty{ padding:20px; text-align:center; color:var(--text-2); font-size:12.5px;}
+.swap-btn{
+  width:42px; height:42px; border-radius:50%; background:var(--accent-grad); border:none; color:#0a0a12;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:transform .3s ease;
+}
+.swap-btn:hover{ transform:rotate(180deg); }
+.cur-meta{ display:flex; justify-content:space-between; margin-top:18px; font-size:12px; color:var(--text-2);}
+.pop-cur{ display:flex; gap:8px; flex-wrap:wrap; margin-top:16px;}
+.chip{ padding:7px 13px; border-radius:20px; background:var(--glass); border:1px solid var(--border); font-size:12px; font-weight:600; color:var(--text-1);}
+.chip:hover{ background:var(--glass-hi); color:var(--text-0); }
+.chip.fav{ border-color:var(--violet-2); color:var(--violet-2); }
+.mini-chart{ width:100%; height:70px; margin-top:16px; }
+
+.chip.active{ background:var(--accent-grad); color:#0a0a12; border-color:transparent; }
+.unit-select{
+  flex-shrink:0; max-width:150px; background:var(--glass-hi); border:1px solid var(--border); border-radius:10px;
+  padding:8px 10px; font-size:13px; font-weight:600; color:var(--text-0); outline:none; cursor:pointer; appearance:none;
+}
+.unit-select:hover{ border-color:var(--border-hi); }
+.notes-wrap{ display:grid; grid-template-columns:280px 1fr; gap:20px; height:calc(100vh - 150px);}
+@media (max-width:900px){ .notes-wrap{ grid-template-columns:1fr; height:auto;} }
+.notes-list-panel{ padding:16px; border-radius:var(--radius-lg); display:flex; flex-direction:column; overflow:hidden;}
+.notes-search{ display:flex; align-items:center; gap:8px; background:var(--glass); border:1px solid var(--border); border-radius:10px; padding:8px 12px; margin-bottom:10px;}
+.notes-search input{ background:none; border:none; outline:none; font-size:13px; width:100%; color:var(--text-0);}
+.new-note-btn{ padding:10px; border-radius:10px; background:var(--accent-grad); border:none; color:#0a0a12; font-weight:600; font-size:13px; margin-bottom:12px;}
+.note-item{
+  padding:12px; border-radius:12px; background:var(--glass); border:1px solid var(--border); cursor:pointer; margin-bottom:8px;
+  transition:background .15s ease;
+}
+.note-item:hover{ background:var(--glass-hi); }
+.note-item.active{ border-color:var(--border-hi); background:var(--glass-hi); }
+.note-item .ttl{ font-size:13.5px; font-weight:600; display:flex; align-items:center; gap:6px; }
+.note-item .snip{ font-size:11.5px; color:var(--text-2); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.note-item .pin{ color:var(--violet-2); }
+.notes-editor{ padding:22px; border-radius:var(--radius-lg); display:flex; flex-direction:column; overflow:hidden;}
+.editor-title{ font-family:var(--font-display); font-size:22px; font-weight:600; background:none; border:none; outline:none; width:100%; margin-bottom:6px; color:var(--text-0);}
+.editor-toolbar{ display:flex; gap:4px; padding:6px 0 14px; border-bottom:1px solid var(--border); margin-bottom:14px; flex-wrap:wrap;}
+.editor-toolbar button{
+  width:32px; height:32px; border-radius:8px; background:none; border:1px solid transparent; color:var(--text-1);
+  display:flex; align-items:center; justify-content:center;
+}
+.editor-toolbar button:hover{ background:var(--glass-hi); border-color:var(--border); color:var(--text-0);}
+.editor-body{ flex:1; outline:none; font-size:14.5px; line-height:1.7; overflow-y:auto; color:var(--text-0);}
+.editor-body:empty:before{ content:attr(data-placeholder); color:var(--text-2); }
+.editor-body ul,.editor-body ol{ padding-left:22px; margin:8px 0; }
+.editor-body code{ background:var(--glass-hi); padding:2px 6px; border-radius:5px; font-family:var(--font-mono); font-size:13px;}
+.editor-footer{ display:flex; justify-content:space-between; padding-top:12px; border-top:1px solid var(--border); margin-top:12px; font-size:11.5px; color:var(--text-2);}
+
+.settings-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:18px; max-width:920px;}
+.set-card{ padding:22px; border-radius:var(--radius-lg);}
+.set-card h4{ font-family:var(--font-display); font-size:14.5px; margin-bottom:14px; }
+.theme-opts{ display:flex; gap:10px; flex-wrap:wrap; }
+.theme-opt{ width:52px; height:52px; border-radius:14px; border:2px solid var(--border); position:relative; overflow:hidden;}
+.theme-opt.active{ border-color:var(--violet-2); }
+.accent-opts{ display:flex; gap:10px; }
+.accent-dot{ width:30px; height:30px; border-radius:50%; border:2px solid transparent;}
+.accent-dot.active{ border-color:var(--text-0); }
+.set-row{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; font-size:13px; color:var(--text-1);}
+.set-row input[type=range]{ width:130px; accent-color:var(--violet-2); }
+.set-row select{ background:var(--glass); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:12.5px;}
+
+.modal-overlay{
+  position:fixed; inset:0; background:rgba(4,4,10,.55); backdrop-filter:blur(4px);
+  display:none; align-items:flex-start; justify-content:center; padding-top:12vh; z-index:100;
+}
+.modal-overlay.open{ display:flex; }
+.modal-box{ width:560px; max-width:92vw; background:var(--bg-2); border:1px solid var(--border-hi); border-radius:18px; overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,.5);}
+.modal-search{ display:flex; align-items:center; gap:10px; padding:16px 18px; border-bottom:1px solid var(--border);}
+.modal-search input{ flex:1; background:none; border:none; outline:none; font-size:15px; color:var(--text-0);}
+.modal-results{ max-height:340px; overflow-y:auto; padding:8px;}
+.modal-result{ padding:10px 12px; border-radius:10px; display:flex; justify-content:space-between; gap:10px;}
+.modal-result:hover{ background:var(--glass-hi); }
+.modal-result .tag{ font-size:10px; color:var(--text-2); border:1px solid var(--border); border-radius:6px; padding:1px 6px; }
+
+.toast{
+  position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); opacity:0;
+  background:var(--bg-2); border:1px solid var(--border-hi); padding:11px 20px; border-radius:12px;
+  font-size:13px; transition:all .3s cubic-bezier(.2,.8,.2,1); pointer-events:none; z-index:200;
+}
+.toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body data-theme="dark">
+<div class="app">
+
+  <nav class="sidebar">
+    <div class="brand">
+      <div class="mark"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#0a0a12" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13h3.2l1.8-6 3.4 12 2.2-6h3.4l1.8 4h4.2"/></svg></div>
+      <div><h1>Compute</h1><span>calculation suite</span></div>
+    </div>
+    <button class="nav-item active" data-view="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>Dashboard</button>
+    <button class="nav-item" data-view="standard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="12" x2="8" y2="12"/><line x1="12" y1="12" x2="12" y2="12"/><line x1="16" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="12" y1="16" x2="12" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>Standard</button>
+    <button class="nav-item" data-view="scientific"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3v6l-5.5 9.5A1 1 0 0 0 4.36 20h15.28a1 1 0 0 0 .86-1.5L15 9V3"/><line x1="9" y1="3" x2="15" y2="3"/></svg>Scientific</button>
+    <button class="nav-item" data-view="graphing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>Graphing</button>
+    <button class="nav-item" data-view="currency"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9 9.5c0-1.1 1.3-2 3-2s3 .9 3 2-1.3 1.5-3 2-3 .9-3 2 1.3 2 3 2 3-.9 3-2"/></svg>Currency</button>
+    <button class="nav-item" data-view="units"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/><path d="m17.5 15.5 2-2"/></svg>Unit Converter</button>
+    <button class="nav-item" data-view="notes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v13l-4 4H4z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/></svg>Notes</button>
+    <div class="nav-spacer"></div>
+    <div class="nav-footer">
+      <button class="nav-item" data-view="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1.96z"/></svg>Settings</button>
+    </div>
+  </nav>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" id="menuBtn" title="Menu" aria-label="Open menu">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="search-box" id="openSearchBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Search notes, history, equations..." readonly>
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="topbar-right"><span id="clockDisplay"></span></div>
+    </div>
+
+    <div class="view active" id="view-dashboard">
+      <div class="dash-hero">
+        <h2>Every calculation, one Compute.</h2>
+        <p>Standard and scientific calculators, a Desmos-style grapher, live currency conversion, unit conversion, and notes. Fast, offline-capable, and yours.</p>
+        <div class="scope-wrap"><canvas id="scopeCanvas" width="520" height="260" style="width:100%;height:100%;"></canvas></div>
+      </div>
+      <div class="card-grid">
+        <div class="dcard" data-view="standard"><div class="icn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/></svg></div><h3>Standard Calculator</h3><p>Everyday arithmetic with history</p></div>
+        <div class="dcard" data-view="scientific"><div class="icn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3v6l-5.5 9.5A1 1 0 0 0 4.36 20h15.28a1 1 0 0 0 .86-1.5L15 9V3"/></svg></div><h3>Scientific Calculator</h3><p>Trig, logs, memory & constants</p></div>
+        <div class="dcard" data-view="graphing"><div class="icn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></div><h3>Graphing Calculator</h3><p>Plot functions like Desmos</p></div>
+        <div class="dcard" data-view="currency"><div class="icn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg></div><h3>Currency Converter</h3><p>Live rates, 30+ currencies</p></div>
+        <div class="dcard" data-view="units"><div class="icn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/><path d="m17.5 15.5 2-2"/></svg></div><h3>Unit Converter</h3><p>Length, weight, temperature & more</p></div>
+        <div class="dcard" data-view="notes"><div class="icn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v13l-4 4H4z"/></svg></div><h3>Smart Notes</h3><p>Rich text, autosaved locally</p></div>
+        <div class="dcard" data-view="settings"><div class="icn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/></svg></div><h3>Settings</h3><p>Theme, precision, accent color</p></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-standard">
+      <div class="calc-wrap">
+        <div class="glass-card calc-panel">
+          <div class="calc-display">
+            <div class="calc-expr" id="stdExpr">&nbsp;</div>
+            <div class="calc-result" id="stdResult" title="Click to copy">0</div>
+          </div>
+          <div class="calc-grid" id="stdGrid"></div>
+        </div>
+        <div class="glass-card side-panel">
+          <h4>History <button id="stdClearHist">clear</button></h4>
+          <div class="hist-list" id="stdHistList"><div class="empty-hint">Your calculations will appear here.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" id="view-scientific">
+      <div class="calc-wrap">
+        <div class="glass-card calc-panel">
+          <div class="toggle-row">
+            <button class="toggle-btn active" id="sciDeg">DEG</button>
+            <button class="toggle-btn" id="sciRad">RAD</button>
+          </div>
+          <div class="calc-display">
+            <div class="calc-expr" id="sciExpr">&nbsp;</div>
+            <div class="calc-result" id="sciResult" title="Click to copy">0</div>
+          </div>
+          <div class="mem-row">
+            <button class="key fn" data-mem="mc">MC</button>
+            <button class="key fn" data-mem="mr">MR</button>
+            <button class="key fn" data-mem="mplus">M+</button>
+            <button class="key fn" data-mem="mminus">M-</button>
+          </div>
+          <div class="calc-grid sci" id="sciGrid"></div>
+        </div>
+        <div class="glass-card side-panel">
+          <h4>History <button id="sciClearHist">clear</button></h4>
+          <div class="hist-list" id="sciHistList"><div class="empty-hint">Your calculations will appear here.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" id="view-graphing">
+      <div class="graph-wrap">
+        <div class="glass-card eq-panel">
+          <h4 style="font-family:var(--font-display);font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-2);">Equations</h4>
+          <div class="eq-list" id="eqList"></div>
+          <button class="add-eq-btn" id="addEqBtn">+ Add equation</button>
+        </div>
+        <div class="graph-canvas-wrap">
+          <canvas id="graphCanvas"></canvas>
+          <div class="graph-controls">
+            <button class="gctrl-btn" id="zoomIn" title="Zoom in">+</button>
+            <button class="gctrl-btn" id="zoomOut" title="Zoom out">−</button>
+            <button class="gctrl-btn" id="resetView" title="Reset view">⟲</button>
+            <button class="gctrl-btn" id="exportGraph" title="Export PNG">⭳</button>
+          </div>
+          <div class="coord-readout" id="coordReadout">x: 0.000, y: 0.000</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" id="view-currency">
+      <div class="cur-wrap">
+        <div class="glass-card cur-card">
+          <div class="cur-row">
+            <div class="cur-box">
+              <label>Amount</label>
+              <div class="row2">
+                <div class="cur-select" id="curFromSelect">
+                  <button type="button" class="cur-select-btn">
+                    <img class="flag-ico" id="curFromFlag" alt="">
+                    <span id="curFromCode">USD</span>
+                    <svg class="chev" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <div class="cur-dropdown">
+                    <input type="text" class="cur-dd-search" placeholder="Search currency...">
+                    <div class="cur-dd-list"></div>
+                  </div>
+                </div>
+                <input type="text" id="curAmountFrom" value="1" inputmode="decimal">
+              </div>
+            </div>
+            <button class="swap-btn" id="curSwap">⇄</button>
+            <div class="cur-box">
+              <label>Converted</label>
+              <div class="row2">
+                <div class="cur-select" id="curToSelect">
+                  <button type="button" class="cur-select-btn">
+                    <img class="flag-ico" id="curToFlag" alt="">
+                    <span id="curToCode">EUR</span>
+                    <svg class="chev" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <div class="cur-dropdown">
+                    <input type="text" class="cur-dd-search" placeholder="Search currency...">
+                    <div class="cur-dd-list"></div>
+                  </div>
+                </div>
+                <input type="text" id="curAmountTo" placeholder="0.00" readonly>
+              </div>
+            </div>
+          </div>
+          <div class="cur-meta">
+            <span id="curRateInfo">Loading live rates</span>
+            <span id="curUpdated"></span>
+          </div>
+          <canvas class="mini-chart" id="curChart"></canvas>
+          <div class="pop-cur" id="curPopular"></div>
+        </div>
+        <div class="glass-card side-panel" style="max-height:220px;">
+          <h4>Recent conversions <button id="curClearHist">clear</button></h4>
+          <div class="hist-list" id="curHistList"><div class="empty-hint">Conversions you make will show up here.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" id="view-units">
+      <div class="cur-wrap">
+        <div class="glass-card cur-card">
+          <div class="pop-cur" id="unitCategories"></div>
+          <div class="cur-row" style="margin-top:20px;">
+            <div class="cur-box">
+              <label>Amount</label>
+              <div class="row2">
+                <select class="unit-select" id="unitFromSelect"></select>
+                <input type="text" id="unitAmountFrom" value="1" inputmode="decimal">
+              </div>
+            </div>
+            <button class="swap-btn" id="unitSwap">⇄</button>
+            <div class="cur-box">
+              <label>Converted</label>
+              <div class="row2">
+                <select class="unit-select" id="unitToSelect"></select>
+                <input type="text" id="unitAmountTo" placeholder="0.00" readonly>
+              </div>
+            </div>
+          </div>
+          <div class="cur-meta">
+            <span id="unitRateInfo"></span>
+          </div>
+        </div>
+        <div class="glass-card side-panel" style="max-height:220px;">
+          <h4>Recent conversions <button id="unitClearHist">clear</button></h4>
+          <div class="hist-list" id="unitHistList"><div class="empty-hint">Conversions you make will show up here.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" id="view-notes">
+      <div class="notes-wrap">
+        <div class="glass-card notes-list-panel">
+          <div class="notes-search">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="notesSearchInput" placeholder="Search notes...">
+          </div>
+          <button class="new-note-btn" id="newNoteBtn">+ New note</button>
+          <div id="notesList" style="overflow-y:auto;flex:1;"></div>
+        </div>
+        <div class="glass-card notes-editor">
+          <input type="text" class="editor-title" id="noteTitle" placeholder="Untitled note">
+          <div class="editor-toolbar">
+            <button data-cmd="bold" title="Bold"><b>B</b></button>
+            <button data-cmd="italic" title="Italic"><i>I</i></button>
+            <button data-cmd="underline" title="Underline"><u>U</u></button>
+            <button data-cmd="insertUnorderedList" title="Bullet list">•</button>
+            <button data-cmd="insertOrderedList" title="Numbered list">1.</button>
+            <button data-cmd="formatBlock" data-val="pre" title="Code block">&lt;/&gt;</button>
+            <button data-cmd="undo" title="Undo">↺</button>
+            <button data-cmd="redo" title="Redo">↻</button>
+            <button data-cmd="pin" title="Pin note" id="pinBtn">📌</button>
+            <button data-cmd="delete" title="Delete note" id="delNoteBtn">🗑</button>
+          </div>
+          <div class="editor-body" id="editorBody" contenteditable="true" data-placeholder="Start typing..."></div>
+          <div class="editor-footer">
+            <span id="wordCount">0 words · 0 characters</span>
+            <span id="noteSavedAt">Not saved yet</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="view" id="view-settings">
+      <div class="settings-grid">
+        <div class="glass-card set-card">
+          <h4>Theme</h4>
+          <div class="theme-opts">
+            <div class="theme-opt" data-theme="dark" style="background:#0d0e15;"></div>
+            <div class="theme-opt" data-theme="light" style="background:#f3f2fb;"></div>
+            <div class="theme-opt" data-theme="amoled" style="background:#000;"></div>
+            <div class="theme-opt" data-theme="midnight" style="background:#081020;"></div>
+          </div>
+        </div>
+        <div class="glass-card set-card">
+          <h4>Accent color</h4>
+          <div class="accent-opts">
+            <div class="accent-dot active" data-accent="7c6fee,2fe6c8" style="background:linear-gradient(135deg,#7c6fee,#2fe6c8);"></div>
+            <div class="accent-dot" data-accent="ff6b9d,ffd166" style="background:linear-gradient(135deg,#ff6b9d,#ffd166);"></div>
+            <div class="accent-dot" data-accent="4facfe,00f2fe" style="background:linear-gradient(135deg,#4facfe,#00f2fe);"></div>
+            <div class="accent-dot" data-accent="43e97b,38f9d7" style="background:linear-gradient(135deg,#43e97b,#38f9d7);"></div>
+            <div class="accent-dot" data-accent="fa709a,fee140" style="background:linear-gradient(135deg,#fa709a,#fee140);"></div>
+          </div>
+        </div>
+        <div class="glass-card set-card">
+          <h4>Display</h4>
+          <div class="set-row"><span>Font size</span><input type="range" id="fontSizeRange" min="13" max="19" value="16"></div>
+          <div class="set-row"><span>Animations</span><select id="animToggle"><option value="on">Enabled</option><option value="off">Reduced</option></select></div>
+        </div>
+        <div class="glass-card set-card">
+          <h4>Calculator</h4>
+          <div class="set-row"><span>Result precision</span><input type="range" id="precisionRange" min="2" max="12" value="8"></div>
+          <div class="set-row"><span>Angle unit default</span><select id="angleDefault"><option value="deg">Degrees</option><option value="rad">Radians</option></select></div>
+        </div>
+        <div class="glass-card set-card">
+          <h4>Currency</h4>
+          <div class="set-row"><span>Base currency</span><select id="baseCurrencySetting"></select></div>
+        </div>
+        <div class="glass-card set-card">
+          <h4>Data</h4>
+          <div class="set-row"><span>All data is stored locally in your browser</span></div>
+          <button class="add-eq-btn" id="resetAllData" style="border-color:var(--danger); color:var(--danger);">Clear all app data</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="modal-overlay" id="searchModal">
+  <div class="modal-box">
+    <div class="modal-search">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="globalSearchInput" placeholder="Search notes, history, equations, conversions...">
+    </div>
+    <div class="modal-results" id="globalSearchResults"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s,el=document)=>el.querySelector(s);
+const $$ = (s,el=document)=>[...el.querySelectorAll(s)];
+const store = {
+  get(k,d){ try{ const v=localStorage.getItem('compute_'+k); return v?JSON.parse(v):d; }catch(e){ return d; } },
+  set(k,v){ try{ localStorage.setItem('compute_'+k, JSON.stringify(v)); }catch(e){} }
+};
+function toast(msg){
+  const t=$('#toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._tm); t._tm=setTimeout(()=>t.classList.remove('show'),1800);
+}
+function copyResult(el){
+  const text = el.textContent.trim();
+  if(!text || text==='0') return;
+  navigator.clipboard?.writeText(text).then(()=> toast('Copied ' + text)).catch(()=>{});
+}
+$('#stdResult').addEventListener('click', ()=> copyResult($('#stdResult')));
+$('#sciResult').addEventListener('click', ()=> copyResult($('#sciResult')));
+function fmtNum(n){
+  if(!isFinite(n)) return n>0?'∞':(n<0?'-∞':'Error');
+  if(Number.isNaN(n)) return 'Error';
+  const p = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--precision'))||8;
+  let s = Math.abs(n) > 0 && (Math.abs(n) < 1e-9 || Math.abs(n) >= 1e15) ? n.toExponential(6) : parseFloat(n.toFixed(p)).toString();
+  return s;
+}
+function showView(id){
+  $$('.view').forEach(v=>v.classList.remove('active'));
+  $('#view-'+id).classList.add('active');
+  $$('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.view===id));
+  if(id==='graphing') requestAnimationFrame(()=>{ resizeGraphCanvas(); drawGraph(); });
+}
+$$('.nav-item, .dcard').forEach(el=>{
+  el.addEventListener('click',()=>{ showView(el.dataset.view); closeSidebar(); });
+});
+
+function openSidebar(){ $('.sidebar').classList.add('open'); $('#sidebarOverlay').classList.add('open'); }
+function closeSidebar(){ $('.sidebar').classList.remove('open'); $('#sidebarOverlay').classList.remove('open'); }
+$('#menuBtn').addEventListener('click', openSidebar);
+$('#sidebarOverlay').addEventListener('click', closeSidebar);
+
+function tickClock(){
+  const d=new Date();
+  $('#clockDisplay').textContent = d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) + ' · ' + d.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'});
+}
+tickClock(); setInterval(tickClock,1000*30);
+
+(function scope(){
+  const c = $('#scopeCanvas'); const ctx = c.getContext('2d');
+  function resize(){ const r=c.getBoundingClientRect(); c.width=r.width*2; c.height=r.height*2; }
+  resize(); window.addEventListener('resize', resize);
+  let t=0;
+  function draw(){
+    resize();
+    const w=c.width,h=c.height; ctx.clearRect(0,0,w,h);
+    const grad = ctx.createLinearGradient(0,0,w,0);
+    grad.addColorStop(0,'#7c6fee'); grad.addColorStop(1,'#2fe6c8');
+    for(let layer=0; layer<3; layer++){
+      ctx.beginPath();
+      for(let x=0;x<=w;x+=6){
+        const nx=x/w;
+        const y = h/2 + Math.sin(nx*10 + t + layer*1.4)* (h*0.16) * Math.sin(nx*3.2+layer) + Math.sin(nx*22+t*1.7)*8;
+        x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      }
+      ctx.strokeStyle=grad; ctx.lineWidth=2.4-layer*0.5; ctx.globalAlpha=0.55-layer*0.15;
+      ctx.shadowColor='#7c6fee'; ctx.shadowBlur=14;
+      ctx.stroke();
+    }
+    ctx.globalAlpha=1; ctx.shadowBlur=0;
+    t+=0.018;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+document.addEventListener('click', e=>{
+  const key = e.target.closest('.key');
+  if(!key) return;
+  const r=key.getBoundingClientRect();
+  const ripple=document.createElement('span');
+  ripple.className='ripple';
+  ripple.style.left=(e.clientX-r.left-10)+'px';
+  ripple.style.top=(e.clientY-r.top-10)+'px';
+  ripple.style.width=ripple.style.height='20px';
+  key.appendChild(ripple);
+  setTimeout(()=>ripple.remove(),500);
+});
+const mjs = (typeof math !== 'undefined') ? math.create(math.all, {}) : null;
+if(!mjs) console.warn('mathjs failed to load; falling back to basic arithmetic for the standard calculator.');
+function basicEval(e){
+  if(!/^[0-9+\-*/().\s]+$/.test(e)) return NaN;
+  try{ return Function('"use strict";return (' + e + ')')(); }catch(err){ return NaN; }
+}
+function safeEval(expr){
+  if(!expr || !expr.trim()) return null;
+  let e = expr
+    .replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-')
+    .replace(/π/g,'pi').replace(/√\(/g,'sqrt(')
+    .replace(/(\d)(π)/g,'$1*pi');
+  try{
+    if(!mjs) return basicEval(e);
+    const val = mjs.evaluate(e);
+    if (typeof val === 'number') return val;
+    if (val && val.toNumber) return val.toNumber();
+    return null;
+  }catch(err){ return NaN; }
+}
+
+const stdKeys = [
+  ['C','⌫','%','÷'],
+  ['7','8','9','×'],
+  ['4','5','6','−'],
+  ['1','2','3','+'],
+  ['±','0','.','=']
+];
+function buildStdGrid(){
+  const grid = $('#stdGrid'); grid.innerHTML='';
+  stdKeys.flat().forEach(k=>{
+    const b=document.createElement('button');
+    b.className='key'+(['÷','×','−','+','%'].includes(k)?' op':'')+(k==='='?' eq':'');
+    b.textContent=k; b.dataset.k=k;
+    b.addEventListener('click',()=>handleStdKey(k));
+    grid.appendChild(b);
+  });
+}
+buildStdGrid();
+let stdExprStr='';
+function renderStd(){
+  $('#stdExpr').innerHTML = stdExprStr.replace(/\*/g,'×').replace(/\//g,'÷').replace(/-/g,'−') || '&nbsp;';
+  const val = safeEval(stdExprStr);
+  $('#stdResult').textContent = (val===null) ? '0' : fmtNum(val);
+}
+function handleStdKey(k){
+  if(k==='C'){ stdExprStr=''; }
+  else if(k==='⌫'){ stdExprStr=stdExprStr.slice(0,-1); }
+  else if(k==='='){
+    const val=safeEval(stdExprStr);
+    if(val!==null && !Number.isNaN(val)){
+      pushHistory('std', stdExprStr, fmtNum(val));
+      stdExprStr = fmtNum(val);
+    }
+  }
+  else if(k==='±'){
+    stdExprStr = stdExprStr.startsWith('-') ? stdExprStr.slice(1) : '-'+stdExprStr;
+  }
+  else if(k==='%'){ stdExprStr += '/100'; }
+  else {
+    const map={'×':'*','÷':'/','−':'-'};
+    stdExprStr += map[k]||k;
+  }
+  renderStd();
+}
+renderStd();
+let angleMode='deg';
+let memoryVal=0;
+$('#sciDeg').addEventListener('click',()=>{ angleMode='deg'; $('#sciDeg').classList.add('active'); $('#sciRad').classList.remove('active'); });
+$('#sciRad').addEventListener('click',()=>{ angleMode='rad'; $('#sciRad').classList.add('active'); $('#sciDeg').classList.remove('active'); });
+
+const sciKeys = [
+  ['sin','cos','tan','deg','C','⌫'],
+  ['asin','acos','atan','ln','log','%'],
+  ['x²','x³','xʸ','√','1/x','!'],
+  ['(', ')', 'π','e','mod','÷'],
+  ['7','8','9','rand','abs','×'],
+  ['4','5','6','nCr','nPr','−'],
+  ['1','2','3','±','.','+'],
+  ['0','0','=','=','=','=']
+];
+function buildSciGrid(){
+  const grid=$('#sciGrid'); grid.innerHTML='';
+  const flat=[];
+  sciKeys.forEach(row=>row.forEach(k=>flat.push(k)));
+  const seen = new Set();
+  sciKeys.forEach((row)=>{
+    row.forEach((k)=>{
+      const b=document.createElement('button');
+      const isOp = ['÷','×','−','+','%','mod'].includes(k);
+      b.className='key'+(isOp?' op':'')+(k==='='?' eq':'')+(k.length>2?' fn':'');
+      b.textContent=k;
+      b.addEventListener('click',()=>handleSciKey(k));
+      grid.appendChild(b);
+    });
+  });
+}
+buildSciGrid();
+let sciExprStr='';
+function renderSci(){
+  $('#sciExpr').innerHTML = sciExprStr || '&nbsp;';
+  const val = evalSci(sciExprStr);
+  $('#sciResult').textContent = (val===null) ? '0' : fmtNum(val);
+}
+function evalSci(str){
+  if(!str.trim()) return null;
+  let e = str;
+  const trigWrap = (fn)=> angleMode==='deg' ? `${fn}((pi/180)*` : `${fn}(`;
+  e = e.replace(/sin\(/g,trigWrap('sin')).replace(/cos\(/g,trigWrap('cos')).replace(/tan\(/g,trigWrap('tan'));
+  e = e.replace(/√/g,'sqrt');
+  try{ const v = mjs.evaluate(e); return typeof v==='number'? v : (v&&v.toNumber? v.toNumber(): null); }
+  catch(err){ return NaN; }
+}
+function handleSciKey(k){
+  if(k==='C'){ sciExprStr=''; }
+  else if(k==='⌫'){ sciExprStr=sciExprStr.slice(0,-1); }
+  else if(k==='deg'){ angleMode = angleMode==='deg'?'rad':'deg'; $('#sci'+(angleMode==='deg'?'Deg':'Rad')).click(); }
+  else if(k==='='){
+    const val=evalSci(sciExprStr);
+    if(val!==null && !Number.isNaN(val)){ pushHistory('sci', sciExprStr, fmtNum(val)); sciExprStr=fmtNum(val); }
+  }
+  else if(k==='±'){ sciExprStr = sciExprStr.startsWith('-') ? sciExprStr.slice(1) : '-'+sciExprStr; }
+  else if(k==='%'){ sciExprStr += '/100'; }
+  else if(k==='x²'){ sciExprStr += '^2'; }
+  else if(k==='x³'){ sciExprStr += '^3'; }
+  else if(k==='xʸ'){ sciExprStr += '^'; }
+  else if(k==='√'){ sciExprStr += 'sqrt('; }
+  else if(k==='1/x'){ sciExprStr = `1/(${sciExprStr||'0'})`; }
+  else if(k==='!'){ sciExprStr += '!'; }
+  else if(k==='π'){ sciExprStr += 'pi'; }
+  else if(k==='e'){ sciExprStr += 'e'; }
+  else if(k==='mod'){ sciExprStr += ' mod '; }
+  else if(k==='abs'){ sciExprStr += 'abs('; }
+  else if(k==='rand'){ sciExprStr += Math.random().toFixed(6); }
+  else if(k==='nCr'){ sciExprStr += ' nCr '; }
+  else if(k==='nPr'){ sciExprStr += ' nPr '; }
+  else if(['sin','cos','tan','asin','acos','atan','ln','log'].includes(k)){
+    sciExprStr += (k==='ln'?'log(':(k==='log'?'log10(':k+'('));
+  }
+  else if(k==='×'){ sciExprStr+='*'; }
+  else if(k==='÷'){ sciExprStr+='/'; }
+  else if(k==='−'){ sciExprStr+='-'; }
+  else if(k==='+'){ sciExprStr+='+'; }
+  else { sciExprStr += k; }
+  renderSci();
+}
+$$('[data-mem]').forEach(b=>b.addEventListener('click',()=>{
+  const m=b.dataset.mem;
+  if(m==='mc') memoryVal=0;
+  else if(m==='mr') sciExprStr += fmtNum(memoryVal);
+  else if(m==='mplus') memoryVal += (evalSci(sciExprStr)||0);
+  else if(m==='mminus') memoryVal -= (evalSci(sciExprStr)||0);
+  renderSci();
+  toast(m==='mr'?'Recalled from memory':'Memory: '+fmtNum(memoryVal));
+}));
+renderSci();
+window.addEventListener('keydown', e=>{
+  const active = $('.view.active').id;
+  if(active==='view-standard'){
+    if(/[0-9.+\-*/%()]/.test(e.key)){ stdExprStr+=e.key; renderStd(); }
+    else if(e.key==='Enter'){ handleStdKey('='); }
+    else if(e.key==='Backspace'){ handleStdKey('⌫'); }
+    else if(e.key==='Escape'){ handleStdKey('C'); }
+  } else if(active==='view-scientific'){
+    if(/[0-9.+\-*/%()]/.test(e.key)){ sciExprStr+=e.key; renderSci(); }
+    else if(e.key==='Enter'){ handleSciKey('='); }
+    else if(e.key==='Backspace'){ handleSciKey('⌫'); }
+    else if(e.key==='Escape'){ handleSciKey('C'); }
+  }
+});
+let history = { std: store.get('hist_std',[]), sci: store.get('hist_sci',[]) };
+function pushHistory(kind, expr, result){
+  history[kind].unshift({expr, result, t:Date.now()});
+  history[kind] = history[kind].slice(0,50);
+  store.set('hist_'+kind, history[kind]);
+  renderHistory(kind);
+}
+function renderHistory(kind){
+  const list = $('#'+kind+'HistList');
+  const items = history[kind];
+  if(!items.length){ list.innerHTML='<div class="empty-hint">Your calculations will appear here.</div>'; return; }
+  list.innerHTML = items.map((h,i)=>`<div class="hist-item" data-i="${i}"><div class="e">${h.expr.replace(/</g,'&lt;')}</div><div class="r">= ${h.result}</div></div>`).join('');
+  $$('.hist-item',list).forEach(el=>el.addEventListener('click',()=>{
+    const h=items[el.dataset.i];
+    if(kind==='std'){ stdExprStr=h.result; renderStd(); }
+    else{ sciExprStr=h.result; renderSci(); }
+  }));
+}
+renderHistory('std'); renderHistory('sci');
+$('#stdClearHist').addEventListener('click',()=>{ history.std=[]; store.set('hist_std',[]); renderHistory('std'); });
+$('#sciClearHist').addEventListener('click',()=>{ history.sci=[]; store.set('hist_sci',[]); renderHistory('sci'); });
+const graphColors = ['#7c6fee','#2fe6c8','#ff6b9d','#ffd166','#4facfe','#43e97b','#fa709a','#c471ed'];
+let equations = store.get('equations', [
+  {expr:'sin(x)', color:graphColors[0], visible:true},
+  {expr:'x^2/4', color:graphColors[1], visible:true}
+]);
+let view = store.get('graphView', {cx:0, cy:0, scale:40});
+const gcanvas = $('#graphCanvas'); const gctx = gcanvas.getContext('2d');
+function resizeGraphCanvas(){
+  const r = gcanvas.parentElement.getBoundingClientRect();
+  gcanvas.width = r.width*2; gcanvas.height = r.height*2;
+  gcanvas.style.width = r.width+'px'; gcanvas.style.height = r.height+'px';
+}
+window.addEventListener('resize', ()=>{ resizeGraphCanvas(); drawGraph(); });
+
+function toScreen(x,y){
+  const w=gcanvas.width,h=gcanvas.height;
+  return [ w/2 + (x-view.cx)*view.scale, h/2 - (y-view.cy)*view.scale ];
+}
+function toWorld(sx,sy){
+  const w=gcanvas.width,h=gcanvas.height;
+  return [ (sx-w/2)/view.scale+view.cx, -(sy-h/2)/view.scale+view.cy ];
+}
+function niceStep(px){
+  const raw = px/view.scale;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const norm = raw/mag;
+  let step;
+  if(norm<2) step=1; else if(norm<5) step=2; else step=5;
+  return step*mag;
+}
+function drawGraph(){
+  const w=gcanvas.width, h=gcanvas.height;
+  const isLight = document.body.getAttribute('data-theme')==='light';
+  gctx.clearRect(0,0,w,h);
+  gctx.fillStyle = isLight ? '#ffffff' : '#0d0e15';
+  gctx.fillRect(0,0,w,h);
+  const step = niceStep(90);
+  gctx.strokeStyle = isLight ? 'rgba(20,18,40,0.08)' : 'rgba(255,255,255,0.06)';
+  gctx.lineWidth = 1;
+  const [wx0] = toWorld(0,0); const [wx1] = toWorld(w,0);
+  const startX = Math.floor(wx0/step)*step;
+  for(let x=startX; x<=wx1; x+=step){
+    const [sx] = toScreen(x,0);
+    gctx.beginPath(); gctx.moveTo(sx,0); gctx.lineTo(sx,h); gctx.stroke();
+  }
+  const [,wy0] = toWorld(0,0); const [,wy1] = toWorld(0,h);
+  const startY = Math.floor(wy1/step)*step;
+  for(let y=startY; y<=wy0; y+=step){
+    const [,sy] = toScreen(0,y);
+    gctx.beginPath(); gctx.moveTo(0,sy); gctx.lineTo(w,sy); gctx.stroke();
+  }
+  gctx.strokeStyle = isLight ? 'rgba(20,18,40,0.35)' : 'rgba(255,255,255,0.28)';
+  gctx.lineWidth = 2;
+  const [ax] = toScreen(0,0); const [,ay] = toScreen(0,0);
+  gctx.beginPath(); gctx.moveTo(ax,0); gctx.lineTo(ax,h); gctx.stroke();
+  gctx.beginPath(); gctx.moveTo(0,ay); gctx.lineTo(w,ay); gctx.stroke();
+  gctx.fillStyle = isLight ? 'rgba(20,18,40,0.5)' : 'rgba(255,255,255,0.45)';
+  gctx.font = '20px JetBrains Mono';
+  for(let x=startX; x<=wx1; x+=step){
+    if(Math.abs(x)<step/10) continue;
+    const [sx] = toScreen(x,0);
+    gctx.fillText(parseFloat(x.toFixed(6)).toString(), sx+4, ay+18);
+  }
+  equations.forEach(eq=>{
+    if(!eq.visible || !eq.expr.trim()) return;
+    let compiled;
+    try{ compiled = mjs.compile(eq.expr.replace(/^y\s*=/,'')); }catch(err){ return; }
+    gctx.beginPath();
+    gctx.strokeStyle = eq.color; gctx.lineWidth = 3.5;
+    gctx.shadowColor = eq.color; gctx.shadowBlur = 8;
+    let started=false, prevY=null;
+    for(let sx=0; sx<=w; sx+=2){
+      const [wx] = toWorld(sx,0);
+      let yv;
+      try{ yv = compiled.evaluate({x:wx}); }catch(err){ yv=NaN; }
+      if(typeof yv!=='number' || !isFinite(yv)){ started=false; continue; }
+      const [,sy] = toScreen(wx,yv);
+      if(!started || (prevY!==null && Math.abs(sy-prevY)>h*1.5)){ gctx.moveTo(sx,sy); started=true; }
+      else gctx.lineTo(sx,sy);
+      prevY = sy;
+    }
+    gctx.stroke();
+    gctx.shadowBlur=0;
+  });
+  store.set('graphView', view);
+}
+function renderEqList(){
+  const list = $('#eqList'); list.innerHTML='';
+  equations.forEach((eq,i)=>{
+    const row=document.createElement('div');
+    row.className='eq-row'+(eq.visible?'':' hidden-eq');
+    row.innerHTML = `<div class="eq-swatch" style="background:${eq.color}"></div>
+      <input type="text" value="${eq.expr.replace(/"/g,'&quot;')}" placeholder="y = f(x)">
+      <button class="del-eq" title="Delete">✕</button>`;
+    const input = $('input',row);
+    input.addEventListener('input',()=>{ eq.expr=input.value; store.set('equations',equations); drawGraph(); });
+    $('.eq-swatch',row).addEventListener('click',()=>{ eq.visible=!eq.visible; store.set('equations',equations); renderEqList(); drawGraph(); });
+    $('.del-eq',row).addEventListener('click',()=>{ equations.splice(i,1); store.set('equations',equations); renderEqList(); drawGraph(); });
+    list.appendChild(row);
+  });
+}
+$('#addEqBtn').addEventListener('click',()=>{
+  equations.push({expr:'', color:graphColors[equations.length%graphColors.length], visible:true});
+  store.set('equations',equations); renderEqList(); drawGraph();
+});
+renderEqList();
+
+let dragging=false, lastPt=null;
+gcanvas.addEventListener('mousedown', e=>{ dragging=true; lastPt=[e.clientX,e.clientY]; });
+window.addEventListener('mouseup', ()=> dragging=false);
+window.addEventListener('mousemove', e=>{
+  if($('.view.active').id!=='view-graphing') return;
+  const r=gcanvas.getBoundingClientRect();
+  const sx=(e.clientX-r.left)*2, sy=(e.clientY-r.top)*2;
+  const [wx,wy] = toWorld(sx,sy);
+  $('#coordReadout').textContent = `x: ${wx.toFixed(3)}, y: ${wy.toFixed(3)}`;
+  if(dragging && lastPt){
+    const dx=(e.clientX-lastPt[0])*2, dy=(e.clientY-lastPt[1])*2;
+    view.cx -= dx/view.scale; view.cy += dy/view.scale;
+    lastPt=[e.clientX,e.clientY]; drawGraph();
+  }
+});
+gcanvas.addEventListener('wheel', e=>{
+  e.preventDefault();
+  const factor = e.deltaY<0 ? 1.1 : 0.9;
+  view.scale = Math.max(4, Math.min(2000, view.scale*factor));
+  drawGraph();
+},{passive:false});
+$('#zoomIn').addEventListener('click',()=>{ view.scale=Math.min(2000,view.scale*1.3); drawGraph(); });
+$('#zoomOut').addEventListener('click',()=>{ view.scale=Math.max(4,view.scale/1.3); drawGraph(); });
+$('#resetView').addEventListener('click',()=>{ view={cx:0,cy:0,scale:40}; drawGraph(); });
+$('#exportGraph').addEventListener('click',()=>{
+  const a=document.createElement('a'); a.download='graph.png'; a.href=gcanvas.toDataURL('image/png'); a.click();
+  toast('Graph exported as PNG');
+});
+let touchStartDist=null;
+gcanvas.addEventListener('touchstart', e=>{
+  if(e.touches.length===1){ dragging=true; lastPt=[e.touches[0].clientX, e.touches[0].clientY]; }
+  else if(e.touches.length===2){ touchStartDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); }
+});
+gcanvas.addEventListener('touchmove', e=>{
+  e.preventDefault();
+  if(e.touches.length===1 && dragging){
+    const dx=(e.touches[0].clientX-lastPt[0])*2, dy=(e.touches[0].clientY-lastPt[1])*2;
+    view.cx -= dx/view.scale; view.cy += dy/view.scale;
+    lastPt=[e.touches[0].clientX,e.touches[0].clientY]; drawGraph();
+  } else if(e.touches.length===2 && touchStartDist){
+    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+    view.scale = Math.max(4, Math.min(2000, view.scale*(d/touchStartDist)));
+    touchStartDist=d; drawGraph();
+  }
+},{passive:false});
+gcanvas.addEventListener('touchend', ()=>{ dragging=false; touchStartDist=null; });
+const currencyNames = {
+  USD:'US Dollar', EUR:'Euro', GBP:'British Pound', JPY:'Japanese Yen', CHF:'Swiss Franc',
+  CAD:'Canadian Dollar', AUD:'Australian Dollar', NZD:'New Zealand Dollar', CNY:'Chinese Yuan',
+  HKD:'Hong Kong Dollar', TWD:'New Taiwan Dollar', SGD:'Singapore Dollar', INR:'Indian Rupee',
+  PKR:'Pakistani Rupee', BDT:'Bangladeshi Taka', LKR:'Sri Lankan Rupee', NPR:'Nepalese Rupee',
+  MVR:'Maldivian Rufiyaa', BTN:'Bhutanese Ngultrum', AFN:'Afghan Afghani', MMK:'Myanmar Kyat',
+  KHR:'Cambodian Riel', LAK:'Lao Kip', VND:'Vietnamese Dong', THB:'Thai Baht', MYR:'Malaysian Ringgit',
+  IDR:'Indonesian Rupiah', PHP:'Philippine Peso', BND:'Brunei Dollar', MOP:'Macanese Pataca',
+  KRW:'South Korean Won', KPW:'North Korean Won', MNT:'Mongolian Tugrik', KZT:'Kazakhstani Tenge',
+  UZS:'Uzbekistani Som', TJS:'Tajikistani Somoni', TMT:'Turkmenistani Manat', KGS:'Kyrgystani Som',
+  AZN:'Azerbaijani Manat', GEL:'Georgian Lari', AMD:'Armenian Dram', RUB:'Russian Ruble',
+  BYN:'Belarusian Ruble', UAH:'Ukrainian Hryvnia', MDL:'Moldovan Leu', TRY:'Turkish Lira',
+  ILS:'Israeli Shekel', JOD:'Jordanian Dinar', LBP:'Lebanese Pound', SYP:'Syrian Pound',
+  IQD:'Iraqi Dinar', IRR:'Iranian Rial', KWD:'Kuwaiti Dinar', SAR:'Saudi Riyal', QAR:'Qatari Riyal',
+  BHD:'Bahraini Dinar', OMR:'Omani Rial', AED:'UAE Dirham', YER:'Yemeni Rial', EGP:'Egyptian Pound',
+  LYD:'Libyan Dinar', TND:'Tunisian Dinar', DZD:'Algerian Dinar', MAD:'Moroccan Dirham',
+  SDG:'Sudanese Pound', SSP:'South Sudanese Pound', ETB:'Ethiopian Birr', ERN:'Eritrean Nakfa',
+  DJF:'Djiboutian Franc', SOS:'Somali Shilling', KES:'Kenyan Shilling', UGX:'Ugandan Shilling',
+  TZS:'Tanzanian Shilling', RWF:'Rwandan Franc', BIF:'Burundian Franc', KMF:'Comorian Franc',
+  MGA:'Malagasy Ariary', MUR:'Mauritian Rupee', SCR:'Seychellois Rupee', MWK:'Malawian Kwacha',
+  ZMW:'Zambian Kwacha', ZWL:'Zimbabwean Dollar', MZN:'Mozambican Metical', BWP:'Botswana Pula',
+  NAD:'Namibian Dollar', SZL:'Eswatini Lilangeni', LSL:'Lesotho Loti', ZAR:'South African Rand',
+  AOA:'Angolan Kwanza', CDF:'Congolese Franc', XAF:'Central African CFA Franc', XOF:'West African CFA Franc',
+  GHS:'Ghanaian Cedi', NGN:'Nigerian Naira', GMD:'Gambian Dalasi', GNF:'Guinean Franc',
+  SLL:'Sierra Leonean Leone', LRD:'Liberian Dollar', CVE:'Cape Verdean Escudo', STN:'São Tomé Dobra',
+  XPF:'CFP Franc', FJD:'Fijian Dollar', PGK:'Papua New Guinean Kina', SBD:'Solomon Islands Dollar',
+  VUV:'Vanuatu Vatu', WST:'Samoan Tala', TOP:'Tongan Paʻanga', EUR2:'', BGN:'Bulgarian Lev',
+  RON:'Romanian Leu', HUF:'Hungarian Forint', PLN:'Polish Zloty', CZK:'Czech Koruna',
+  HRK:'Croatian Kuna', RSD:'Serbian Dinar', ALL:'Albanian Lek', MKD:'Macedonian Denar',
+  BAM:'Bosnia-Herzegovina Mark', ISK:'Icelandic Krona', SEK:'Swedish Krona', NOK:'Norwegian Krone',
+  DKK:'Danish Krone', GIP:'Gibraltar Pound', CHF2:'', MXN:'Mexican Peso', GTQ:'Guatemalan Quetzal',
+  BZD:'Belize Dollar', HNL:'Honduran Lempira', NIO:'Nicaraguan Córdoba', CRC:'Costa Rican Colón',
+  PAB:'Panamanian Balboa', CUP:'Cuban Peso', DOP:'Dominican Peso', HTG:'Haitian Gourde',
+  JMD:'Jamaican Dollar', TTD:'Trinidad and Tobago Dollar', BBD:'Barbadian Dollar', BSD:'Bahamian Dollar',
+  KYD:'Cayman Islands Dollar', XCD:'East Caribbean Dollar', AWG:'Aruban Florin', ANG:'Netherlands Antillean Guilder',
+  BMD:'Bermudian Dollar', COP:'Colombian Peso', VES:'Venezuelan Bolívar', GYD:'Guyanese Dollar',
+  SRD:'Surinamese Dollar', BRL:'Brazilian Real', PYG:'Paraguayan Guaraní', UYU:'Uruguayan Peso',
+  BOB:'Bolivian Boliviano', PEN:'Peruvian Sol', CLP:'Chilean Peso', ARS:'Argentine Peso'
+};
+delete currencyNames.EUR2; delete currencyNames.CHF2;
+const flagExceptions = {
+  EUR:'eu', XOF:'sn', XAF:'cm', XCD:'ag', XPF:'pf', ANG:'cw', BAM:'ba', KPW:'kp', CDF:'cd',
+  STN:'st', COP:'co', SSP:'ss', GIP:'gi'
+};
+function flagCountry(code){ return flagExceptions[code] || code.slice(0,2).toLowerCase(); }
+function flagUrl(code){ return `https://flagcdn.com/24x18/${flagCountry(code)}.png`; }
+
+let rates = store.get('rates', null);
+let ratesBase = store.get('ratesBase','USD');
+let ratesTime = store.get('ratesTime', null);
+let favCurrencies = store.get('favCurrencies', ['USD','EUR','GBP','MAD','JPY','AED']);
+let curFromCode = store.get('curFrom','USD');
+let curToCode = store.get('curTo','EUR');
+
+function currencyList(){
+  const known = Object.keys(currencyNames);
+  const fromRates = rates ? Object.keys(rates) : [];
+  const all = Array.from(new Set([...known, ...fromRates]));
+  return all.sort();
+}
+
+function setCurrencyBtn(which, code){
+  $('#cur'+which+'Code').textContent = code;
+  $('#cur'+which+'Flag').src = flagUrl(code);
+  $('#cur'+which+'Flag').onerror = ()=>{ $('#cur'+which+'Flag').style.visibility='hidden'; };
+  $('#cur'+which+'Flag').style.visibility='visible';
+}
+
+function buildDropdown(selectEl, currentCode, onPick){
+  const btn = $('.cur-select-btn', selectEl);
+  const dropdown = $('.cur-dropdown', selectEl);
+  const search = $('.cur-dd-search', selectEl);
+  const list = $('.cur-dd-list', selectEl);
+  function renderList(q){
+    q=(q||'').toLowerCase();
+    const items = currencyList().filter(c => !q || c.toLowerCase().includes(q) || (currencyNames[c]||'').toLowerCase().includes(q));
+    if(!items.length){ list.innerHTML='<div class="cur-dd-empty">No currencies match.</div>'; return; }
+    list.innerHTML = items.map(c=>`<div class="cur-dd-item" data-c="${c}"><img src="${flagUrl(c)}" width="20" height="14" style="border-radius:3px;object-fit:cover;" onerror="this.style.visibility='hidden'"><span class="code">${c}</span><span class="name">${currencyNames[c]||''}</span></div>`).join('');
+    $$('.cur-dd-item', list).forEach(el=>el.addEventListener('click',()=>{
+      selectEl.classList.remove('open');
+      onPick(el.dataset.c);
+    }));
+  }
+  btn.addEventListener('click', e=>{
+    e.stopPropagation();
+    const willOpen = !selectEl.classList.contains('open');
+    $$('.cur-select.open').forEach(s=>s.classList.remove('open'));
+    if(willOpen){ selectEl.classList.add('open'); search.value=''; renderList(''); search.focus(); }
+  });
+  search.addEventListener('input', ()=> renderList(search.value));
+  search.addEventListener('click', e=>e.stopPropagation());
+}
+document.addEventListener('click', ()=> $$('.cur-select.open').forEach(s=>s.classList.remove('open')));
+
+buildDropdown($('#curFromSelect'), curFromCode, (code)=>{
+  curFromCode=code; setCurrencyBtn('From',code); fetchRates(code);
+});
+buildDropdown($('#curToSelect'), curToCode, (code)=>{
+  curToCode=code; setCurrencyBtn('To',code); renderCurrency();
+});
+setCurrencyBtn('From', curFromCode);
+setCurrencyBtn('To', curToCode);
+
+function populateBaseCurrencySetting(){
+  const sel = $('#baseCurrencySetting');
+  sel.innerHTML = currencyList().map(c=>`<option value="${c}">${c} · ${currencyNames[c]||c}</option>`).join('');
+  sel.value = curFromCode;
+}
+populateBaseCurrencySetting();
+
+async function fetchRates(base){
+  $('#curRateInfo').textContent='Fetching live rates';
+  try{
+    const res = await fetch(`https://open.er-api.com/v6/latest/${base}`);
+    const data = await res.json();
+    if(data.result==='success'){
+      rates = data.rates; ratesBase = base; ratesTime = Date.now();
+      store.set('rates',rates); store.set('ratesBase',base); store.set('ratesTime',ratesTime);
+      populateBaseCurrencySetting();
+      renderCurrency();
+      toast('Exchange rates updated');
+    } else throw new Error('bad response');
+  }catch(err){
+    $('#curRateInfo').textContent = rates ? 'Showing cached rates (offline)' : 'Could not load live rates. Check your connection.';
+  }
+}
+function getRate(from,to){
+  if(!rates) return null;
+  if(from===to) return 1;
+  if(ratesBase===from && rates[to]!=null) return rates[to];
+  if(rates[from] && rates[to]!=null) return rates[to]/rates[from];
+  return null;
+}
+function renderCurrency(){
+  const from=curFromCode, to=curToCode;
+  const amt = parseFloat($('#curAmountFrom').value)||0;
+  const r = getRate(from,to);
+  if(r!=null){
+    $('#curAmountTo').value = (amt*r).toLocaleString(undefined,{maximumFractionDigits:6});
+    $('#curRateInfo').textContent = `1 ${from} = ${r.toFixed(6).replace(/0+$/,'').replace(/\.$/,'')} ${to}`;
+    if(ratesTime) $('#curUpdated').textContent = 'Updated ' + new Date(ratesTime).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    drawMiniChart(r);
+    logConversion(from,to,amt,$('#curAmountTo').value);
+  } else {
+    $('#curAmountTo').value='';
+    $('#curRateInfo').textContent = rates ? `Rate for ${from}/${to} unavailable` : 'Loading live rates';
+  }
+  store.set('curFrom',from); store.set('curTo',to);
+}
+function drawMiniChart(baseRate){
+  const c=$('#curChart'); const r=c.getBoundingClientRect();
+  c.width=r.width*2; c.height=(r.height||70)*2;
+  const ctx=c.getContext('2d');
+  ctx.clearRect(0,0,c.width,c.height);
+  const pts=[]; let v=baseRate;
+  for(let i=0;i<30;i++){ v = v*(1+ (Math.sin(i*0.7+baseRate)*0.004)); pts.push(v); }
+  const min=Math.min(...pts), max=Math.max(...pts);
+  ctx.beginPath();
+  pts.forEach((p,i)=>{
+    const x = i/(pts.length-1)*c.width;
+    const y = c.height - ((p-min)/((max-min)||1))*c.height*0.8 - c.height*0.1;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  const grad=ctx.createLinearGradient(0,0,c.width,0);
+  grad.addColorStop(0, getComputedStyle(document.documentElement).getPropertyValue('--violet') || '#7c6fee');
+  grad.addColorStop(1, getComputedStyle(document.documentElement).getPropertyValue('--cyan') || '#2fe6c8');
+  ctx.strokeStyle=grad; ctx.lineWidth=3; ctx.stroke();
+}
+function renderPopularChips(){
+  const popular = ['USD','EUR','GBP','JPY','MAD','CHF','CNY','INR','AED','CAD'];
+  $('#curPopular').innerHTML = favCurrencies.map(c=>`<button class="chip fav" data-c="${c}">${c}</button>`).join('') +
+    popular.filter(c=>!favCurrencies.includes(c)).map(c=>`<button class="chip" data-c="${c}">${c}</button>`).join('');
+  $$('.chip',$('#curPopular')).forEach(ch=>ch.addEventListener('click',()=>{ curToCode=ch.dataset.c; setCurrencyBtn('To',curToCode); renderCurrency(); }));
+}
+renderPopularChips();
+$('#curAmountFrom').addEventListener('input', ()=>{ renderCurrency(); });
+$('#curSwap').addEventListener('click',()=>{
+  const f=curFromCode, t=curToCode;
+  curFromCode=t; curToCode=f;
+  setCurrencyBtn('From',curFromCode); setCurrencyBtn('To',curToCode);
+  fetchRates(curFromCode);
+});
+let curHistory = store.get('curHistory', []);
+function renderCurHist(){
+  const list=$('#curHistList');
+  if(!curHistory.length){ list.innerHTML='<div class="empty-hint">Conversions you make will show up here.</div>'; return; }
+  list.innerHTML = curHistory.slice(0,20).map(h=>`<div class="hist-item"><div class="e">${h.amt} ${h.from} → ${h.to}</div><div class="r">${h.res}</div></div>`).join('');
+}
+renderCurHist();
+let lastLoggedKey = null;
+function logConversion(from,to,amt,res){
+  if(!amt) return;
+  const key = from+to+amt;
+  if(key===lastLoggedKey) return;
+  lastLoggedKey = key;
+  curHistory.unshift({from,to,amt,res,t:Date.now()}); curHistory=curHistory.slice(0,30);
+  store.set('curHistory',curHistory); renderCurHist();
+}
+$('#curClearHist').addEventListener('click', ()=>{ curHistory=[]; store.set('curHistory',[]); renderCurHist(); toast('Conversion history cleared'); });
+if(rates) renderCurrency();
+fetchRates(curFromCode);
+const unitCategories = {
+  length:{ label:'Length', units:{
+    m:{name:'Meters', f:1}, km:{name:'Kilometers', f:1000}, cm:{name:'Centimeters', f:0.01}, mm:{name:'Millimeters', f:0.001},
+    mi:{name:'Miles', f:1609.344}, yd:{name:'Yards', f:0.9144}, ft:{name:'Feet', f:0.3048}, in:{name:'Inches', f:0.0254},
+    nmi:{name:'Nautical miles', f:1852}
+  }},
+  weight:{ label:'Weight', units:{
+    kg:{name:'Kilograms', f:1}, g:{name:'Grams', f:0.001}, mg:{name:'Milligrams', f:0.000001},
+    lb:{name:'Pounds', f:0.45359237}, oz:{name:'Ounces', f:0.028349523125}, ton:{name:'Metric tons', f:1000}, st:{name:'Stone', f:6.35029318}
+  }},
+  temperature:{ label:'Temperature', units:{
+    c:{name:'Celsius'}, f:{name:'Fahrenheit'}, k:{name:'Kelvin'}
+  }},
+  volume:{ label:'Volume', units:{
+    l:{name:'Liters', f:1}, ml:{name:'Milliliters', f:0.001}, m3:{name:'Cubic meters', f:1000},
+    gal:{name:'Gallons (US)', f:3.785411784}, qt:{name:'Quarts', f:0.946352946}, pt:{name:'Pints', f:0.473176473},
+    cup:{name:'Cups', f:0.2365882365}, floz:{name:'Fluid ounces', f:0.0295735295625}
+  }},
+  area:{ label:'Area', units:{
+    m2:{name:'Square meters', f:1}, km2:{name:'Square kilometers', f:1000000}, ha:{name:'Hectares', f:10000},
+    ft2:{name:'Square feet', f:0.09290304}, yd2:{name:'Square yards', f:0.83612736},
+    acre:{name:'Acres', f:4046.8564224}, mi2:{name:'Square miles', f:2589988.110336}
+  }},
+  speed:{ label:'Speed', units:{
+    mps:{name:'Meters/sec', f:1}, kmh:{name:'Km/h', f:0.277777778}, mph:{name:'Miles/h', f:0.44704},
+    knot:{name:'Knots', f:0.514444}, fps:{name:'Feet/sec', f:0.3048}
+  }},
+  time:{ label:'Time', units:{
+    ms:{name:'Milliseconds', f:0.001}, s:{name:'Seconds', f:1}, min:{name:'Minutes', f:60},
+    hr:{name:'Hours', f:3600}, day:{name:'Days', f:86400}, week:{name:'Weeks', f:604800}
+  }},
+  data:{ label:'Data', units:{
+    b:{name:'Bytes', f:1}, kb:{name:'Kilobytes', f:1024}, mb:{name:'Megabytes', f:1048576},
+    gb:{name:'Gigabytes', f:1073741824}, tb:{name:'Terabytes', f:1099511627776}, bit:{name:'Bits', f:0.125}
+  }}
+};
+const unitCategoryIcons = {
+  length:'📏', weight:'⚖️', temperature:'🌡️', volume:'🧪', area:'▦', speed:'💨', time:'⏱', data:'💾'
+};
+let unitCategory = store.get('unitCategory','length');
+let unitFromCode = store.get('unitFrom','m');
+let unitToCode = store.get('unitTo','ft');
+let unitHistory = store.get('unitHistory', []);
+
+function toBaseTemp(v,u){ return u==='c'?v : u==='f'?(v-32)*5/9 : v-273.15; }
+function fromBaseTemp(v,u){ return u==='c'?v : u==='f'?v*9/5+32 : v+273.15; }
+
+function renderUnitCategories(){
+  $('#unitCategories').innerHTML = Object.keys(unitCategories).map(k=>
+    `<button class="chip ${k===unitCategory?'active':''}" data-cat="${k}">${unitCategoryIcons[k]||''} ${unitCategories[k].label}</button>`
+  ).join('');
+  $$('.chip',$('#unitCategories')).forEach(ch=>ch.addEventListener('click',()=>{
+    unitCategory = ch.dataset.cat;
+    const keys = Object.keys(unitCategories[unitCategory].units);
+    unitFromCode = keys[0]; unitToCode = keys[1]||keys[0];
+    store.set('unitCategory',unitCategory);
+    populateUnitSelects(); renderUnitCategories(); renderUnits();
+  }));
+}
+function populateUnitSelects(){
+  const units = unitCategories[unitCategory].units;
+  const opts = Object.keys(units).map(k=>`<option value="${k}">${k.toUpperCase()} · ${units[k].name}</option>`).join('');
+  $('#unitFromSelect').innerHTML = opts; $('#unitFromSelect').value = unitFromCode;
+  $('#unitToSelect').innerHTML = opts; $('#unitToSelect').value = unitToCode;
+}
+function convertUnit(v, from, to){
+  const units = unitCategories[unitCategory].units;
+  if(unitCategory==='temperature') return fromBaseTemp(toBaseTemp(v,from), to);
+  return v * units[from].f / units[to].f;
+}
+function renderUnits(){
+  const amt = parseFloat($('#unitAmountFrom').value)||0;
+  const result = convertUnit(amt, unitFromCode, unitToCode);
+  $('#unitAmountTo').value = isFinite(result) ? result.toLocaleString(undefined,{maximumFractionDigits:6}) : '';
+  const rate = convertUnit(1, unitFromCode, unitToCode);
+  $('#unitRateInfo').textContent = `1 ${unitFromCode.toUpperCase()} = ${fmtNum(rate)} ${unitToCode.toUpperCase()}`;
+  store.set('unitFrom',unitFromCode); store.set('unitTo',unitToCode);
+  logUnitConversion(amt, unitFromCode, unitToCode, $('#unitAmountTo').value);
+}
+let lastLoggedUnitKey = null;
+function logUnitConversion(amt,from,to,res){
+  if(!amt) return;
+  const key = unitCategory+from+to+amt;
+  if(key===lastLoggedUnitKey) return;
+  lastLoggedUnitKey = key;
+  unitHistory.unshift({cat:unitCategory,amt,from,to,res,t:Date.now()}); unitHistory=unitHistory.slice(0,30);
+  store.set('unitHistory',unitHistory); renderUnitHist();
+}
+function renderUnitHist(){
+  const list=$('#unitHistList');
+  if(!unitHistory.length){ list.innerHTML='<div class="empty-hint">Conversions you make will show up here.</div>'; return; }
+  list.innerHTML = unitHistory.slice(0,20).map(h=>`<div class="hist-item"><div class="e">${h.amt} ${h.from.toUpperCase()} → ${h.to.toUpperCase()}</div><div class="r">${h.res}</div></div>`).join('');
+}
+renderUnitCategories();
+populateUnitSelects();
+renderUnitHist();
+renderUnits();
+$('#unitFromSelect').addEventListener('change', e=>{ unitFromCode=e.target.value; renderUnits(); });
+$('#unitToSelect').addEventListener('change', e=>{ unitToCode=e.target.value; renderUnits(); });
+$('#unitAmountFrom').addEventListener('input', renderUnits);
+$('#unitSwap').addEventListener('click', ()=>{
+  const f=unitFromCode, t=unitToCode; unitFromCode=t; unitToCode=f;
+  $('#unitFromSelect').value=unitFromCode; $('#unitToSelect').value=unitToCode;
+  renderUnits();
+});
+$('#unitClearHist').addEventListener('click', ()=>{ unitHistory=[]; store.set('unitHistory',[]); renderUnitHist(); toast('Conversion history cleared'); });
+let notes = store.get('notes', []);
+let activeNoteId = null;
+function uid(){ return 'n'+Date.now()+Math.random().toString(36).slice(2,7); }
+function renderNotesList(filter=''){
+  const list=$('#notesList');
+  const f = filter.toLowerCase();
+  const sorted = [...notes].sort((a,b)=> (b.pinned-a.pinned) || (b.updated-a.updated));
+  const filtered = sorted.filter(n => !f || (n.title+n.body).toLowerCase().includes(f));
+  if(!filtered.length){ list.innerHTML = '<div class="empty-hint">No notes yet. Create one to get started.</div>'; return; }
+  list.innerHTML = filtered.map(n=>`
+    <div class="note-item ${n.id===activeNoteId?'active':''}" data-id="${n.id}">
+      <div class="ttl">${n.pinned?'<span class="pin">📌</span>':''}${(n.title||'Untitled note').slice(0,40)}</div>
+      <div class="snip">${(n.body.replace(/<[^>]+>/g,' ').trim()||'No additional text').slice(0,60)}</div>
+    </div>`).join('');
+  $$('.note-item',list).forEach(el=>el.addEventListener('click',()=> openNote(el.dataset.id)));
+}
+function openNote(id){
+  activeNoteId=id;
+  const n=notes.find(x=>x.id===id);
+  if(!n) return;
+  $('#noteTitle').value = n.title;
+  $('#editorBody').innerHTML = n.body;
+  updateWordCount();
+  $('#noteSavedAt').textContent = 'Saved ' + new Date(n.updated).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  renderNotesList($('#notesSearchInput').value);
+}
+function newNote(){
+  const n = {id:uid(), title:'', body:'', pinned:false, updated:Date.now()};
+  notes.unshift(n); store.set('notes',notes);
+  openNote(n.id);
+}
+$('#newNoteBtn').addEventListener('click', newNote);
+function saveActiveNote(){
+  if(!activeNoteId) return;
+  const n = notes.find(x=>x.id===activeNoteId);
+  if(!n) return;
+  n.title = $('#noteTitle').value;
+  n.body = $('#editorBody').innerHTML;
+  n.updated = Date.now();
+  store.set('notes',notes);
+  $('#noteSavedAt').textContent = 'Saved just now';
+  renderNotesList($('#notesSearchInput').value);
+}
+let saveTimer=null;
+function scheduleSave(){ clearTimeout(saveTimer); saveTimer=setTimeout(saveActiveNote, 500); }
+$('#noteTitle').addEventListener('input', scheduleSave);
+$('#editorBody').addEventListener('input', ()=>{ updateWordCount(); scheduleSave(); });
+function updateWordCount(){
+  const text = $('#editorBody').innerText.trim();
+  const words = text ? text.split(/\s+/).length : 0;
+  $('#wordCount').textContent = `${words} words · ${text.length} characters`;
+}
+$$('.editor-toolbar button').forEach(b=>b.addEventListener('click',()=>{
+  const cmd=b.dataset.cmd;
+  if(cmd==='pin'){
+    const n=notes.find(x=>x.id===activeNoteId); if(n){ n.pinned=!n.pinned; store.set('notes',notes); renderNotesList(); toast(n.pinned?'Note pinned':'Note unpinned'); }
+    return;
+  }
+  if(cmd==='delete'){
+    if(!activeNoteId) return;
+    notes = notes.filter(x=>x.id!==activeNoteId);
+    store.set('notes',notes);
+    activeNoteId=null; $('#noteTitle').value=''; $('#editorBody').innerHTML='';
+    renderNotesList(); toast('Note deleted');
+    return;
+  }
+  $('#editorBody').focus();
+  document.execCommand(cmd, false, b.dataset.val||null);
+  scheduleSave();
+}));
+$('#notesSearchInput').addEventListener('input', e=> renderNotesList(e.target.value));
+if(notes.length){ openNote(notes[0].id); } else { renderNotesList(); }
+function applyTheme(theme){ document.body.setAttribute('data-theme', theme); store.set('theme',theme); $$('.theme-opt').forEach(o=>o.classList.toggle('active', o.dataset.theme===theme)); if($('.view.active').id==='view-graphing') drawGraph(); }
+$$('.theme-opt').forEach(o=>o.addEventListener('click',()=>applyTheme(o.dataset.theme)));
+applyTheme(store.get('theme','dark'));
+
+function applyAccent(pair){
+  const [a,b] = pair.split(',');
+  document.documentElement.style.setProperty('--violet','#'+a);
+  document.documentElement.style.setProperty('--cyan','#'+b);
+  document.documentElement.style.setProperty('--accent-grad',`linear-gradient(135deg,#${a} 0%,#${b} 100%)`);
+  store.set('accent',pair);
+  $$('.accent-dot').forEach(d=>d.classList.toggle('active', d.dataset.accent===pair));
+}
+$$('.accent-dot').forEach(d=>d.addEventListener('click',()=>applyAccent(d.dataset.accent)));
+applyAccent(store.get('accent','7c6fee,2fe6c8'));
+
+$('#fontSizeRange').addEventListener('input', e=>{
+  document.documentElement.style.setProperty('--fsize', e.target.value+'px');
+  store.set('fontSize', e.target.value);
+});
+$('#fontSizeRange').value = store.get('fontSize',16);
+document.documentElement.style.setProperty('--fsize', store.get('fontSize',16)+'px');
+
+$('#precisionRange').addEventListener('input', e=>{
+  document.documentElement.style.setProperty('--precision', e.target.value);
+  store.set('precision', e.target.value);
+  renderStd(); renderSci();
+});
+$('#precisionRange').value = store.get('precision',8);
+document.documentElement.style.setProperty('--precision', store.get('precision',8));
+
+$('#angleDefault').addEventListener('change', e=>{
+  angleMode = e.target.value; store.set('angleDefault', angleMode);
+  $('#sci'+(angleMode==='deg'?'Deg':'Rad')).click();
+});
+$('#angleDefault').value = store.get('angleDefault','deg');
+
+$('#animToggle').addEventListener('change', e=>{
+  document.body.style.setProperty('--dur', e.target.value==='off'?'0s':'');
+  document.documentElement.classList.toggle('reduce-motion', e.target.value==='off');
+  store.set('anim', e.target.value);
+});
+$('#animToggle').value = store.get('anim','on');
+
+$('#baseCurrencySetting').addEventListener('change', e=>{ curFromCode=e.target.value; setCurrencyBtn('From',curFromCode); fetchRates(curFromCode); });
+
+$('#resetAllData').addEventListener('click', ()=>{
+  if(confirm('This clears all locally stored data (notes, history, settings). Continue?')){
+    Object.keys(localStorage).filter(k=>k.startsWith('compute_')).forEach(k=>localStorage.removeItem(k));
+    toast('All data cleared'); setTimeout(()=>location.reload(), 700);
+  }
+});
+function openSearch(){ $('#searchModal').classList.add('open'); $('#globalSearchInput').value=''; $('#globalSearchInput').focus(); renderGlobalSearch(''); }
+function closeSearch(){ $('#searchModal').classList.remove('open'); }
+$('#openSearchBtn').addEventListener('click', openSearch);
+$('#searchModal').addEventListener('click', e=>{ if(e.target.id==='searchModal') closeSearch(); });
+window.addEventListener('keydown', e=>{
+  if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); openSearch(); }
+  if(e.key==='Escape') closeSearch();
+});
+function renderGlobalSearch(q){
+  q=q.toLowerCase();
+  const results=[];
+  notes.forEach(n=>{ if(!q || (n.title+n.body).toLowerCase().includes(q)) results.push({label:n.title||'Untitled note', tag:'note', go:()=>{showView('notes'); openNote(n.id);}}); });
+  equations.forEach((eq,i)=>{ if(!q || eq.expr.toLowerCase().includes(q)) results.push({label:eq.expr||'(empty equation)', tag:'equation', go:()=>showView('graphing')}); });
+  [...history.std, ...history.sci].forEach(h=>{ if(!q || h.expr.toLowerCase().includes(q)) results.push({label:`${h.expr} = ${h.result}`, tag:'history', go:()=>showView('standard')}); });
+  curHistory.forEach(h=>{ if(!q || (h.from+h.to).toLowerCase().includes(q)) results.push({label:`${h.amt} ${h.from} → ${h.res} ${h.to}`, tag:'conversion', go:()=>showView('currency')}); });
+  unitHistory.forEach(h=>{ if(!q || (h.from+h.to).toLowerCase().includes(q)) results.push({label:`${h.amt} ${h.from.toUpperCase()} → ${h.res} ${h.to.toUpperCase()}`, tag:'unit', go:()=>showView('units')}); });
+  const box=$('#globalSearchResults');
+  if(!results.length){ box.innerHTML='<div class="empty-hint">No matches yet.</div>'; return; }
+  box.innerHTML = results.slice(0,20).map((r,i)=>`<div class="modal-result" data-i="${i}"><span>${r.label.replace(/</g,'&lt;').slice(0,60)}</span><span class="tag">${r.tag}</span></div>`).join('');
+  $$('.modal-result',box).forEach((el,i)=>el.addEventListener('click',()=>{ results[i].go(); closeSearch(); }));
+}
+$('#globalSearchInput').addEventListener('input', e=> renderGlobalSearch(e.target.value));
+window.addEventListener('load', ()=>{ resizeGraphCanvas(); drawGraph(); });
+</script>
+</body>
+</html>
