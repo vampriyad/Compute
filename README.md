@@ -9,7 +9,7 @@ Compute brings together everything you need in one place, including a standard c
 🌐 Live Website
 Try Compute here:
 
-https://your-username.github.io/compute/
+[https://your-username.github.io/compute/](https://vampriyad.github.io/Compute/)
 
 🚀 About Compute
 Compute is built for students, professionals, and anyone who needs powerful calculation tools in a simple and elegant web application. Whether you're solving equations, graphing functions, converting currencies, or taking quick notes, Compute keeps everything within easy reach.
