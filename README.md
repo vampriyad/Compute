@@ -2,7 +2,7 @@
 
 Welcome! 👋
 
-This repository contains the official website for **Compute**, a modern all-in-one calculator designed to make everyday calculations faster, easier, and more intuitive.
+This repository contains the official website for **Compute**, a modern all in one calculator designed to make everyday calculations faster, easier, and more intuitive.
 
 Compute brings together everything you need in one place, including a standard calculator, scientific calculator, graphing calculator, currency converter, and notes section, all wrapped in a clean and responsive interface.
 
