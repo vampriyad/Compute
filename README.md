@@ -1,38 +1,41 @@
-🧮 Compute
+# 🧮 Compute
 
 Welcome! 👋
 
-This repository contains the official website for Compute, a modern all in one calculator designed to make everyday calculations faster, easier, and more intuitive.
+This repository contains the official website for **Compute**, a modern all-in-one calculator designed to make everyday calculations faster, easier, and more intuitive.
 
-Compute brings together everything you need in one place, including a standard calculator, scientific calculator, graphing tool, currency converter, and notes section, all wrapped in a clean and responsive interface.
+Compute brings together everything you need in one place, including a standard calculator, scientific calculator, graphing calculator, currency converter, and notes section, all wrapped in a clean and responsive interface.
 
-🌐 Live Website
+## 🌐 Live Website
+
 Try Compute here:
 
-[https://your-username.github.io/compute/](https://vampriyad.github.io/Compute/)
+https://your-username.github.io/compute/
 
-🚀 About Compute
+## 🚀 About Compute
+
 Compute is built for students, professionals, and anyone who needs powerful calculation tools in a simple and elegant web application. Whether you're solving equations, graphing functions, converting currencies, or taking quick notes, Compute keeps everything within easy reach.
 
-✨ Features
-🧮 Standard Calculator
-🔬 Scientific Calculator
-📈 Interactive Graphing Calculator
-💱 Live Currency Converter
-📝 Built in Notes
-📱 Responsive design for desktop and mobile
-⚡ Fast, lightweight, and easy to use
+## ✨ Features
 
-📜 Copyright
+- 🧮 Standard Calculator
+- 🔬 Scientific Calculator
+- 📈 Interactive Graphing Calculator
+- 💱 Live Currency Converter
+- 📝 Built-in Notes
+- 📱 Responsive Design
+- ⚡ Fast, Lightweight, and Easy to Use
 
-This project, including the source code, website design, images, and written content, is protected by copyright.
+## 📜 Copyright
+
+This project, including its source code, website design, and other content, is protected by copyright.
 
 No part of this project may be copied, modified, distributed, or reused without prior written permission from the author.
 
-❤️ Thank You
+## ❤️ Thank You
 
-Thank you for visiting this project and supporting my work. I hope you enjoy using Compute and find it helpful for your daily calculations.
+Thank you for visiting this project and supporting my work. I hope you enjoy using **Compute** and find it helpful for your daily calculations.
 
-If you like the project, consider giving the repository a ⭐.
+---
 
-© 2026 Riyad. All Rights Reserved.
+**© 2026 Riyad. All Rights Reserved.**
