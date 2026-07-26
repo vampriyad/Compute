@@ -10,7 +10,7 @@ Compute brings together everything you need in one place, including a standard c
 
 Try Compute here:
 
-https://your-username.github.io/compute/
+[https://your-username.github.io/compute/](https://vampriyad.github.io/Compute/)
 
 ## 🚀 About Compute
 
