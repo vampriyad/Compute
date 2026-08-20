@@ -10,7 +10,7 @@ Compute brings together everything you need in one place, including a standard c
 
 Try Compute here:
 
-[Compute.com]https://vampriyad.github.io/Compute/
+[Compute.com] https://vampriyad.github.io/Compute/
 
 ## 🚀 About Compute
 
