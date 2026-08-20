@@ -8,9 +8,9 @@ Compute brings together everything you need in one place, including a standard c
 
 ## 🌐 Live Website
 
-Try Compute here:
+Try Compute here :
 
-[Compute.com] https://vampriyad.github.io/Compute/
+https://vampriyad.github.io/Compute/
 
 ## 🚀 About Compute
 
